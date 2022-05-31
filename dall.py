@@ -13,10 +13,7 @@ from functools import reduce
 # dataclass(slots=True,frozen=True) for most of these dataclasses But i don't
 # know what people will be running this on, so I'm leaving them blank
 
-
-
-
-
+_DALL_KEYWORDS : tuple[str] = ("dull",)
 
 @dataclass()
 class TokLoc:
@@ -35,13 +32,19 @@ appliable
 
 class TokenType(Enum):
   WORD    = auto()
+  KEYWORD = auto()
   LITERAL = auto()
+  OPAREN  = auto()
+  CPAREN  = auto()
 
 @dataclass()
 class Token:
   type    : TokenType
   loc     : TokLoc
-  Lexeme  : str
+  lexeme  : str
+
+  def __repr__(self):
+    return f"{self.type.name}:{self.loc}:{self.lexeme}"
 
 
 # custom Error Type to make life easier
@@ -82,7 +85,10 @@ def _scanLine(line : str, lnum : int,start : int, end : int) -> tuple[Token]:
       buff : str = cc
       while peek().isalnum() or peek() == "_":
         buff += advance()
-      obuff.append(genTok(TokenType.WORD,buff))
+      if buff in _DALL_KEYWORDS:
+        obuff.append(genTok(TokenType.KEYWORD,buff))
+      else:
+        obuff.append(genTok(TokenType.WORD,buff))
     elif cc.isdigit():
       buff : str = cc
       while peek().isdigit():
@@ -130,9 +136,9 @@ def chunk(text : str) -> tuple:
   if not lines:
     return ()
   indent_stack : list[int] = [lines[0][0]]
-  struct : list[tuple[tuple[Token,...],list]] = [[(lines[0][1],[])]]
+  struct : list[tuple[tuple[Token,...],list]] = [[]]
   
-  for ind,toks in lines[1:]:
+  for ind,toks in lines:
     if ind > indent_stack[-1]:
       indent_stack.append(ind)
       struct.append(struct[-1][-1][1])
@@ -146,16 +152,37 @@ def chunk(text : str) -> tuple:
         possible = min(stackref,key=lambda x: x - ind)
         throwError(host.loc,"Indent Mismatch, did you mean an indent of "\
                            f"{possible} spaces")
-    struct[-1].append((ind,toks))
+    struct[-1].append((toks,[]))
 
-  return struct[0][0]
+  return struct[0]
 
 ##### Everything Below This Line is for testing  #####
 ############### and is prone to change ###############
 
+def disScan(struct : tuple[tuple[Token,...],list],toplev=True):
+  out = []
+  for tok,body in struct:
+    out.append(" ".join(map(repr,tok)))
+    out.append(1)
+    out.extend(disScan(body,False))
+    out.append(-1)
+  if toplev:
+    buff = ""
+    ci = 0
+    for i in out:
+      if isinstance(i,int):
+        ci += i
+      elif isinstance(i,str):
+        buff+= "\t"*ci + i + "\n"
+    return buff.expandtabs(4)
+  else: return out
+
 def testError(text : str):
+  global script_struct
   try:
     script_struct = chunk(text)
+    print(script_struct)
+    print(disScan(script_struct))
   except dallError as de:
     print("Error:"+de.msg,file=sys.stderr)
     print(text[de.loc.lstart:de.loc.lend],file=sys.stderr)
