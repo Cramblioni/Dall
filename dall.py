@@ -15,10 +15,7 @@ from functools import reduce
 
 
 
-# custom Error Type to make life easier
-class dallError(BaseException):
-  def __init__(self,msg,loc):
-    self.msg,self.loc = msg,loc
+
 
 
 @dataclass()
@@ -46,9 +43,18 @@ class Token:
   loc     : TokLoc
   Lexeme  : str
 
+
+# custom Error Type to make life easier
+@dataclass()
+class dallError(BaseException):
+  msg : str
+  loc : TokLoc
+  def __init__(self,msg,loc):
+    self.msg,self.loc = msg,loc
 # and a nice little function to make raising the error nicer
 def throwError(loc : TokLoc,msg : str):
-  raise dallError(f"line {loc.line} column {loc.column} :: {msg}",loc)
+  raise dallError(f"{loc.line}:{loc.column}:: {msg}",loc)
+
 
 def _scanLine(line : str, lnum : int,start : int, end : int) -> tuple[Token]:
   cind   : int         = 0
@@ -91,13 +97,17 @@ def _scanLine(line : str, lnum : int,start : int, end : int) -> tuple[Token]:
     elif cc == '"':
       buff : str = ""
       while cind < mxind and peek() != '"':
-        buff += advance()
+        if peek() == "\\":
+          advance()
+          escode = advance()
+        else:
+          buff += advance()
       advance()
       obuff.append(genTok(TokenType.LITERAL,buff))
     elif cc == ";":
       break
     else:
-      throwError(TokLoc(line,tstart,start,end),
+      throwError(TokLoc(lnum,tstart,start,end),
         "Unexpected Token \"%s\""%cc)
   return tuple(obuff)
     
@@ -138,7 +148,19 @@ def chunk(text : str) -> tuple:
                            f"{possible} spaces")
     struct[-1].append((ind,toks))
 
-  return struct[0]    
+  return struct[0][0]
+
+##### Everything Below This Line is for testing  #####
+############### and is prone to change ###############
+
+def testError(text : str):
+  try:
+    script_struct = chunk(text)
+  except dallError as de:
+    print("Error:"+de.msg,file=sys.stderr)
+    print(text[de.loc.lstart:de.loc.lend],file=sys.stderr)
+    print(" "*de.loc.column+"~"*max(1,de.loc.endcol-de.loc.column),file=sys.stderr)
+    
 
 ##### Everything Below This Line is Experimental #####
 ############### and is prone to change ###############
