@@ -1,0 +1,21 @@
+Dall todo [No Peticular Order]:
+- lists / iterables
+	~ literals
+	~ operations
+	~ pattern matching
+	~ generation through specific function syntax?
+- lexer re-write
+	[
+		~ simplify (maintain 2-way communication)
+		~ extend communication to parser
+	] OR [
+		~ standardise the syntax
+		~ swap the scan and chunk steps
+		~ drop support for embedded python
+	]
+- improve error handling
+	~ internal ( errors caused by my code  )
+	~ external ( reporting errors to users )
+
+- simplify whole lexing/parsing setup
+
