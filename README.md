@@ -12,7 +12,7 @@ print (flip add " World!" "Hello,")
 ; an annoying square function
 dull square
     1 = sub 0 1
-	x = mul x x
+    x = mul x x
 
 print ( square 10 )
 print ( square 5  )
